@@ -193,11 +193,14 @@ Backend → `http://localhost:8000/docs` · Frontend → `http://localhost:8501`
 
 ## 👤 Author
 
-**[Your Name]**
-AI/GenAI Engineer · [LinkedIn](#) · [Portfolio](#) · [GitHub](#)
+**Prajwal Barsagade**
 
----
+B.Tech Electronics & Telecommunication Engineering
 
+AI Engineer | GenAI | RAG | LangGraph | FastAPI
+
+- GitHub: https://github.com/Prajwal07114
+- LinkedIn: http://linkedin.com/in/prajwal-barsagade-380763281/
 ## ⚠️ Disclaimer
 
 This platform produces AI-generated analysis for informational and educational purposes only. It is **not a substitute for professional legal advice**. All risk and compliance findings are evidence-backed observations, not legal conclusions — always consult a licensed attorney before acting on contract terms.
