@@ -1,399 +1,206 @@
-# ⚖️ Legal Intelligence Platform — Phase 2
+# ⚖️ Legal Intelligence Platform
 
-An **enterprise-grade Multi-Agent Legal Intelligence Platform**: a 9-agent
-**LangGraph** pipeline with conditional routing that ingests contracts,
-performs RAG-grounded legal research, extracts deep structured intelligence,
-runs deterministic compliance checks, detects named legal red flags, compares
-contract versions, and generates an evidence-backed, structured legal
-analysis report.
+**A production-grade, multi-agent AI system that reads contracts like a legal investigator — extracting evidence, scoring compliance, flagging risk, and generating audit-ready reports.**
 
-Built as a portfolio-grade GenAI/AI engineering project. Phase 2 builds
-directly on top of Phase 1 — nothing from Phase 1 was removed; the original
-5-agent pipeline, endpoints, and database tables are all still present and
-functional (see "Phase 1 → Phase 2" below).
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Agent%20Orchestration-1C3C3C)](https://www.langchain.com/langgraph)
+[![LangChain](https://img.shields.io/badge/LangChain-Core-1C3C3C?logo=langchain&logoColor=white)](https://www.langchain.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
+[![Groq](https://img.shields.io/badge/Groq-Llama%203.3%2070B-F55036?logo=groq&logoColor=white)](https://groq.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-Frontend-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](#)
 
 ---
 
-## ✨ What it does
+## 🧭 Overview
 
-- Accepts legal questions (with or without an attached document)
-- Accepts contract PDFs — single documents or two-way comparisons
-- Performs legal research using **RAG** over a vector database (pgvector)
-- **Extracts deep document intelligence**: parties, effective/expiration
-  dates, obligations, payment terms, confidentiality/liability/indemnity/
-  termination clauses, governing law, jurisdiction, deadlines, penalties —
-  every finding backed by evidence
-- **Runs a deterministic compliance check** (0-100 score, computed in pure
-  Python — never hallucinated) against a mandatory-clause checklist
-- **Detects named legal red flags** (unlimited liability, one-sided
-  termination, excessive penalties, ambiguous obligations, missing
-  protections, broad indemnification, weak confidentiality) with an
-  explanation and evidence for every flag
-- **Compares two contracts** (V1 vs V2, Vendor A vs Vendor B) and reports
-  added / removed / modified clauses
-- Aggregates every risk signal into one overall risk level (Low / Moderate /
-  High / Critical) — deterministically, not via LLM guesswork
-- Generates a structured **Legal Intelligence Report**, not a chat reply —
-  with a full evidence & citations trail
+Legal Intelligence Platform is a **9-agent LangGraph pipeline** that transforms raw contract PDFs into structured, evidence-backed legal intelligence — clause extraction, compliance scoring, red-flag detection, risk aggregation, and side-by-side contract comparison, all grounded in a RAG pipeline over PostgreSQL/pgvector.
+
+It's built to demonstrate the core skills a GenAI engineering role actually requires: agent orchestration with real conditional routing, retrieval-augmented generation, deterministic-vs-LLM design tradeoffs, and a FastAPI backend that doesn't fall over on malformed model output.
+
+---
+
+## ✨ Feature Highlights
+
+- 🧩 **Multi-agent LangGraph workflow** with real conditional routing (single-contract vs. contract-comparison branches)
+- 📄 **Deep document intelligence** — parties, dates, obligations, payment terms, and clause-level extraction with evidence citations
+- ✅ **Deterministic compliance scoring** (0–100, computed in Python, never hallucinated) against a mandatory-clause checklist
+- 🚩 **Red flag detection** — unlimited liability, one-sided termination, excessive penalties, and more, each with an evidence trail
+- ⚖️ **Aggregated risk scoring** — one overall risk level computed from every severity signal in the pipeline
+- 🔀 **Contract comparison** — GitHub-diff-style redline of added/removed/modified clauses between two contracts
+- 🔎 **RAG-grounded legal research** over a pgvector-backed statute/regulation/clause-reference corpus
+- 📤 **PDF / DOCX / JSON export** — branded, paginated case reports generated with ReportLab and python-docx
+- 🖥️ **Custom enterprise UI** — a full-width "Legal Investigation Command Room" theme, not a default Streamlit dashboard
 
 ---
 
 ## 🏗️ Architecture
 
-### Single-contract pipeline (`workflow_mode="single"`, the default)
+```mermaid
+flowchart TD
+    A[📄 Contract Upload / Query] --> B[🧠 Legal Intake Agent]
+    B --> C[🔎 Legal Research Agent<br/><i>RAG · pgvector retrieval</i>]
+    C --> D{Workflow Mode}
+    D -->|Single Contract| E[📑 Document Intelligence Agent]
+    D -->|Comparison Mode| F[🔀 Contract Comparison Agent]
+    E --> G[✅ Compliance Agent<br/><i>deterministic scoring</i>]
+    F --> G
+    G --> H[🚩 Red Flag Detection Agent]
+    H --> I[⚖️ Risk Assessment Agent<br/><i>severity aggregation</i>]
+    I --> J[📋 Report Generation Agent<br/><i>deterministic template</i>]
+    J --> K[📤 PDF / DOCX / JSON Export]
 
-```
-User Query / PDF Upload
-        │
-        ▼
-┌─────────────────────────┐
-│ 1. Legal Intake Agent    │  classifies task_type + topics
-└────────────┬─────────────┘
-             ▼
-┌─────────────────────────┐
-│ 2. Legal Research Agent  │  RAG retrieval (pgvector)
-└────────────┬─────────────┘
-             ▼
-┌─────────────────────────┐
-│ 6. Legal Document         │  parties, dates, obligations, payment terms,
-│    Intelligence Agent     │  confidentiality/liability/indemnity/
-│                            │  termination clauses — with evidence
-└────────────┬─────────────┘
-             ▼
-┌─────────────────────────┐
-│ 7. Compliance Agent       │  deterministic 0-100 score,
-│                            │  missing-clause detection
-└────────────┬─────────────┘
-             ▼
-┌─────────────────────────┐
-│ 8. Red Flag Detection     │  named risk patterns + explanations
-│    Agent                  │  + evidence
-└────────────┬─────────────┘
-             ▼
-┌─────────────────────────┐
-│ 4. Legal Risk Assessment  │  aggregates every severity signal into
-│    Agent                  │  one overall_risk_level (deterministic)
-└────────────┬─────────────┘
-             ▼
-┌─────────────────────────┐
-│ 5. Legal Report            │  deterministic Python template —
-│    Generation Agent        │  no extra LLM call
-└────────────┬─────────────┘
-             ▼
-   Final Legal Intelligence Report
+    style D fill:#1C2433,stroke:#9C7A3B,color:#E8E6E3
+    style G fill:#1C2433,stroke:#3E6B48,color:#E8E6E3
+    style H fill:#1C2433,stroke:#8C2F39,color:#E8E6E3
+    style I fill:#1C2433,stroke:#C6A15B,color:#E8E6E3
 ```
 
-### Comparison pipeline (`workflow_mode="comparison"`)
-
-```
-Contract A ─┐
-            ├──▶ Legal Intake → Legal Research
-Contract B ─┘                        │
-                                      ▼
-                        9. Contract Comparison Agent
-                     (extracts + diffs A vs B; B's structured
-                      intelligence feeds the rest of the pipeline)
-                                      │
-                                      ▼
-                     Compliance → Red Flag → Risk → Report
-                     (identical tail to the single-contract pipeline)
-```
-
-Implemented as a **LangGraph `StateGraph` with real conditional routing**
-(`add_conditional_edges`), branching on `state["workflow_mode"]` right after
-the Research Agent. Both branches converge back into a shared
-Compliance → Red Flag → Risk → Report tail — see `backend/app/graph.py`.
-
-### Phase 1 → Phase 2: what changed, what didn't
-
-| | Phase 1 | Phase 2 |
-|---|---|---|
-| Agents | 5 (Intake, Research, Clause Analysis, Risk, Report) | 9 (adds Document Intelligence, Compliance, Red Flag Detection, Contract Comparison) |
-| Graph | Linear `StateGraph` | `StateGraph` with conditional routing (single vs. comparison) |
-| Clause extraction | Agent 3 (`clause_agent.py`) — **still in the codebase, still importable/testable, just not wired into the default graph** | Agent 6 (`document_intelligence_agent.py`) — richer, evidence-backed, also populates the Phase 1 `clauses`/`obligations`/`deadlines`/`penalties` fields for backward compatibility |
-| Risk scoring | LLM-only | Agent 4 now deterministically aggregates the highest severity across its own LLM risks + Agent 8's red flags + Agent 7's compliance issues |
-| Report sections | Document Summary, References, Clauses, Obligations, Deadlines, Risk Assessment, Recommendations, Disclaimer | Executive Summary, Contract Overview, Extracted Legal Intelligence, Compliance Assessment, Red Flag Analysis, Risk Assessment, Evidence & Citations, Contract Comparison (if applicable), Recommended Review Areas, Disclaimer — **all Phase 1 data still rendered**, just reorganized |
-| Endpoints | `/upload-document`, `/analyze-document`, `/ask`, `/report/{id}` (unchanged, still work) | + `/compare-contracts`, `/compliance-check`, `/risk-analysis`, `/comparison-report/{id}`, `/compliance-report/{id}`, `/risk-report/{id}` |
-| Database | 5 tables | + `compliance_results`, `risk_flags`, `comparison_results` (migration `002_phase2_tables.sql`) |
-| Frontend pages | Document Upload, Legal Query, Report Viewer | Contract Upload, Contract Analysis, **Compliance Dashboard**, **Risk Dashboard**, **Contract Comparison**, Report Viewer |
-
-This is still explicitly **NOT a legal advice system** — the Risk and Red
-Flag agents surface observations with evidence, never instructions or
-guarantees.
+**Design decisions worth noting:**
+- Routing after the Research Agent is a genuine `add_conditional_edges` branch on `workflow_mode`, not a linear pipeline dressed up as one.
+- The **Report Generation Agent is deterministic** — it renders from structured state via Python templates, not another LLM call, so report structure is 100% reliable.
+- **Compliance scoring is pure Python**, computed from clause-presence flags — the LLM only supplies narrative explanations, never the score itself.
 
 ---
 
-## 🕵️ Visual Identity — "Contract Intelligence Command Room"
+## 🤖 The Multi-Agent Workflow
 
-The frontend is a fully custom dark investigation-room theme (`frontend/theme.py`),
-not a default Streamlit/SaaS look:
+| # | Agent | Responsibility |
+|---|-------|-----------------|
+| 1 | **Legal Intake Agent** | Classifies the request (Contract Review, Legal Research, Clause Explanation, Risk Analysis) |
+| 2 | **Legal Research Agent** | RAG retrieval over pgvector — statutes, regulations, clause references, and relevant document chunks |
+| 3 | **Document Intelligence Agent** | Extracts parties, dates, obligations, payment terms, and confidentiality/liability/indemnity/termination clauses — each with evidence |
+| 4 | **Compliance Agent** | Deterministic 0–100 compliance score + missing-clause detection against a mandatory checklist |
+| 5 | **Red Flag Detection Agent** | Detects named risk patterns (unlimited liability, one-sided termination, broad indemnification, etc.) with explanations |
+| 6 | **Risk Assessment Agent** | Aggregates every severity signal in the pipeline into one overall risk level |
+| 7 | **Report Generation Agent** | Assembles the final evidence-backed report via deterministic Python templates |
+| 8 | **Contract Comparison Agent** | Diffs two contracts — added, removed, and modified clauses — in comparison mode |
 
-- **Palette**: near-black panels (`#0A0E17` / `#141A26` / `#1C2433`), gold case-file
-  accents (`#C6A15B` / `#9C7A3B`), and warm paper (`#F5F1E8`) reserved only for
-  contract/report text — so documents read as physical exhibits inside a dark room.
-- **Type**: IBM Plex Mono for case-file labels, evidence tags, and risk markers;
-  Source Serif 4 for contract/report text; IBM Plex Sans for ordinary UI chrome.
-- **Signature motif — the Evidence Tag**: a small dashed-border rectangle with a
-  colored dot + uppercase monospace label, reused everywhere: risk markers
-  (`● HIGH RISK`), clause-type flags, pipeline stage stamps, and compliance-matrix
-  indicators.
-- **Contract Comparison** renders as a GitHub-diff-style redline (Contract A left,
-  Contract B right, added/removed/modified highlighted), not a comparison table.
-- **Reports** render as a paper "dossier" (`render_dossier()` in `theme.py`, backed
-  by the `markdown` package) with a case-file cover header, not raw markdown blocks.
-- **Compliance Dashboard** uses a custom-colored Plotly gauge and an audit-sheet
-  `<table>` (`li-matrix` CSS class) instead of generic KPI cards.
+All nine responsibilities above map onto eight agent modules — RAG retrieval (traditionally a standalone "Retrieval Agent") is implemented as a capability *of* the Legal Research Agent rather than a separate node, since it's a single retrieval call, not an independent decision-making step.
+
+---
 
 ## 🧰 Tech Stack
 
-| Layer            | Technology                                   |
-|-------------------|-----------------------------------------------|
-| Frontend          | Streamlit (+ Plotly for the compliance gauge) — custom "Legal Investigation Center" dark theme, see below |
-| Backend           | FastAPI                                       |
-| LLM               | Groq — Llama 3.3 (70B versatile)              |
-| Agent Orchestration | LangGraph (`StateGraph` + conditional edges) |
-| Database          | PostgreSQL                                    |
-| Vector Search     | pgvector (cosine similarity)                  |
-| Embeddings        | sentence-transformers (`all-MiniLM-L6-v2`, local, free) |
-| PDF Processing    | pdfplumber (primary) + PyPDF2 (fallback)      |
-| Testing           | pytest (32 unit/agent/workflow tests, no live DB/Groq required) |
-| Deployment        | Render (backend + Postgres), Streamlit Community Cloud or Render (frontend) |
+| Layer | Technology |
+|---|---|
+| **Orchestration** | LangGraph (`StateGraph` + conditional routing), LangChain Core |
+| **LLM** | Groq — Llama 3.3 70B Versatile |
+| **Backend** | FastAPI, Pydantic, SQLAlchemy |
+| **Database** | PostgreSQL + pgvector (cosine similarity search) |
+| **Embeddings** | Sentence Transformers (`all-MiniLM-L6-v2`, local, no paid API) |
+| **Frontend** | Streamlit + Plotly (custom dark "Command Room" theme) |
+| **Document Export** | ReportLab (PDF), python-docx (DOCX) |
+| **Testing** | Pytest (38 tests — agent logic, defensive parsing, LangGraph routing) |
+| **Deployment** | Render (native Python runtime) |
 
 ---
 
 ## 📁 Project Structure
-
-```
 legal-intelligence-platform/
 ├── backend/
-│   ├── app/
-│   │   ├── main.py                  # FastAPI app entrypoint
-│   │   ├── config.py                 # Settings (pydantic-settings)
-│   │   ├── database.py               # SQLAlchemy engine/session
-│   │   ├── models.py                 # ORM models (Phase 1 + Phase 2 tables)
-│   │   ├── schemas.py                # Pydantic request/response schemas
-│   │   ├── graph.py                  # LangGraph workflow (conditional routing)
-│   │   ├── agents/
-│   │   │   ├── state.py              # Shared LangGraph state schema
-│   │   │   ├── intake_agent.py       # Agent 1
-│   │   │   ├── research_agent.py     # Agent 2
-│   │   │   ├── clause_agent.py       # Agent 3 (Phase 1 — preserved, standalone)
-│   │   │   ├── risk_agent.py         # Agent 4 (Phase 2: now a deterministic aggregator)
-│   │   │   ├── report_agent.py       # Agent 5 (deterministic, upgraded sections)
-│   │   │   ├── document_intelligence_agent.py  # Agent 6 (Phase 2)
-│   │   │   ├── compliance_agent.py   # Agent 7 (Phase 2)
-│   │   │   ├── red_flag_agent.py     # Agent 8 (Phase 2)
-│   │   │   └── comparison_agent.py   # Agent 9 (Phase 2)
-│   │   ├── rag/                      # PDF processing, chunking, embeddings, retrieval
-│   │   ├── routes/
-│   │   │   ├── upload.py             # POST /upload-document
-│   │   │   ├── analyze.py            # POST /analyze-document
-│   │   │   ├── ask.py                # POST /ask
-│   │   │   ├── report.py             # GET /report/{id}, /comparison-report/{id}, ...
-│   │   │   ├── compare.py            # POST /compare-contracts (Phase 2)
-│   │   │   ├── compliance.py         # POST /compliance-check (Phase 2)
-│   │   │   └── risk_analysis.py      # POST /risk-analysis (Phase 2)
-│   │   └── utils/
-│   │       ├── llm_client.py         # Groq client wrapper
-│   │       ├── prompts.py            # All agent prompt templates
-│   │       └── report_template.py    # Deterministic report renderer
-│   ├── scripts/
-│   │   └── seed_citations.py         # Seeds sample statutes/clause refs
-│   ├── tests/                        # 32 tests — agent, workflow, scenario
-│   │   ├── conftest.py
-│   │   ├── test_document_intelligence_agent.py
-│   │   ├── test_compliance_agent.py
-│   │   ├── test_red_flag_agent.py
-│   │   ├── test_risk_agent.py
-│   │   ├── test_comparison_agent.py
-│   │   ├── test_workflow_graph.py
-│   │   └── test_report_template.py
-│   ├── requirements.txt
-│   ├── requirements-dev.txt          # + pytest
-│   ├── pytest.ini
-│   ├── runtime.txt                   # Render Python version pin
-│   └── .env.example
+│ ├── app/
+│ │ ├── agents/ # 8 agent modules + shared LangGraph state schema
+│ │ ├── rag/ # PDF processing, chunking, embeddings, retrieval
+│ │ ├── routes/ # FastAPI endpoints (analyze, compare, compliance, risk, downloads...)
+│ │ ├── utils/ # Prompts, report templates, PDF/DOCX generators
+│ │ ├── graph.py # LangGraph workflow assembly
+│ │ └── main.py # FastAPI entrypoint
+│ ├── tests/ # 38 pytest tests
+│ └── requirements.txt
 ├── database/
-│   ├── schema.sql                    # Combined Phase 1 + Phase 2 (fresh installs)
-│   └── migrations/
-│       ├── 001_phase1_init.sql
-│       └── 002_phase2_tables.sql     # compliance_results, risk_flags, comparison_results
+│ ├── schema.sql # PostgreSQL + pgvector schema
+│ └── migrations/
 ├── frontend/
-│   ├── streamlit_app.py              # Home page
-│   ├── api_client.py                 # Shared HTTP client
-│   ├── session_utils.py              # Multi-document session-state helpers (Phase 2)
-│   ├── theme.py                      # Visual identity / design system
-│   ├── pages/
-│   │   ├── 1_Contract_Upload.py
-│   │   ├── 2_Contract_Analysis.py
-│   │   ├── 3_Compliance_Dashboard.py # Compliance score gauge + missing clauses
-│   │   ├── 4_Risk_Dashboard.py       # Red flag cards with severity + evidence
-│   │   ├── 5_Contract_Comparison.py  # Side-by-side clause diff
-│   │   └── 6_Report_Viewer.py        # Full / compliance / risk / comparison reports
-│   ├── requirements.txt
-│   └── runtime.txt                   # Render Python version pin
-├── DEPLOYMENT.md
-├── RUNBOOK.md
+│ ├── pages/ # 6-page Streamlit app
+│ ├── theme.py # Custom design system
+│ └── components.py
 └── README.md
-```
 
 ---
 
-## 🗄️ Database Schema
+## 🖼️ Screenshots
 
-Eight tables total. Run `database/schema.sql` for a fresh install, or apply
-the numbered files in `database/migrations/` in order against an existing
-Phase 1 database:
+| Contract Analysis | Compliance Dashboard | Risk Dashboard |
+|---|---|---|
+| _add screenshot_ | _add screenshot_ | _add screenshot_ |
 
-**Phase 1** (`001_phase1_init.sql`):
-- `user_sessions`, `legal_documents`, `document_chunks`, `citations`, `reports`
-
-**Phase 2** (`002_phase2_tables.sql`):
-- `compliance_results` — Agent 7 output: score, missing clauses, issues (with evidence)
-- `risk_flags` — Agent 8 output: typed flags with severity + evidence
-- `comparison_results` — Agent 9 output: added/removed/modified clauses
-- `reports.workflow_mode` column added (`"single"` | `"comparison"`)
-
-All JSONB columns store structured evidence (`{label, quote, source}`) so
-every finding is traceable back to its source text.
+| Contract Comparison (Redline) | Report Viewer / Export |
+|---|---|
+| _add screenshot_ | _add screenshot_ |
 
 ---
 
-## 🔌 API Endpoints
-
-| Method | Path                    | Description                                             |
-|--------|--------------------------|-----------------------------------------------------------|
-| POST   | `/upload-document`        | Upload a PDF, extract/chunk/embed, store in pgvector       |
-| POST   | `/analyze-document`        | Full pipeline against a query (+ optional document) — now returns Phase 2 fields too |
-| POST   | `/ask`                     | Full pipeline for a document-free legal research query    |
-| GET    | `/report/{id}`             | Fetch a previously generated full report                  |
-| POST   | `/compare-contracts`       | **(Phase 2)** Run the comparison pipeline on two documents |
-| POST   | `/compliance-check`        | **(Phase 2)** Standalone compliance check on one document  |
-| POST   | `/risk-analysis`           | **(Phase 2)** Standalone red-flag + risk analysis          |
-| GET    | `/comparison-report/{id}`  | **(Phase 2)** Fetch a stored comparison result             |
-| GET    | `/compliance-report/{id}`  | **(Phase 2)** Fetch a stored compliance result             |
-| GET    | `/risk-report/{id}`        | **(Phase 2)** Fetch a stored risk-flags result              |
-| GET    | `/health`                  | Health check                                                |
-
-Interactive API docs (OpenAPI) available at `http://localhost:8000/docs`.
-
-`/analyze-document` and `/ask` responses gained new **optional** fields
-(`document_intelligence`, `compliance_results`, `risk_flags`,
-`red_flag_severity`, `comparison_results`, `evidence_references`) — this is
-purely additive, so any Phase 1 client code still works unchanged.
-
----
-
-## 🚀 Running locally
-
-No Docker required — native Python only.
-
-**1. PostgreSQL + pgvector**
+## ⚙️ Installation
 
 ```bash
-# Fresh install:
-psql -U your_user -d your_db -f database/schema.sql
+git clone https://github.com/<your-username>/legal-intelligence-platform.git
+cd legal-intelligence-platform
+```
 
-# OR, upgrading an existing Phase 1 database:
-psql -U your_user -d your_db -f database/migrations/002_phase2_tables.sql
+**Requirements:** Python 3.11+, PostgreSQL 15+ with `pgvector`, a free [Groq API key](https://console.groq.com).
+
+---
+
+## 🚀 Local Setup
+
+**1. Database**
+```bash
+psql -U your_user -d your_db -f database/schema.sql
 ```
 
 **2. Backend**
-
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # fill in DATABASE_URL and GROQ_API_KEY
-python -m scripts.seed_citations   # optional but recommended
+cp .env.example .env   # set DATABASE_URL and GROQ_API_KEY
 uvicorn app.main:app --reload
 ```
 
-Backend is now live at http://localhost:8000 (docs at `/docs`).
-
-> Note: the app entrypoint is `app.main:app` (i.e. `app/main.py` inside
-> `backend/`), run from the `backend/` directory — not a bare `main.py`
-> at the repo root.
-
 **3. Frontend**
-
 ```bash
 cd frontend
 pip install -r requirements.txt
-export BACKEND_API_URL=http://localhost:8000   # Windows: set BACKEND_API_URL=http://localhost:8000
+export BACKEND_API_URL=http://localhost:8000
 streamlit run streamlit_app.py
 ```
 
-Frontend is now live at http://localhost:8501.
-
-### Running tests
-
-```bash
-cd backend
-pip install -r requirements-dev.txt
-pytest
-```
-
-The 32 tests run **without** a live PostgreSQL or Groq connection — every
-LLM call is mocked, and heavy ML dependencies (`sentence-transformers`,
-`pdfplumber`) are stubbed in `tests/conftest.py`. This keeps the suite fast
-and CI-friendly while still exercising real agent logic: defensive parsing
-of malformed LLM output, deterministic compliance scoring, severity
-aggregation, and LangGraph conditional routing (including one end-to-end run
-of the real compiled graph with every LLM call mocked).
+Backend → `http://localhost:8000/docs` · Frontend → `http://localhost:8501`
 
 ---
 
-## 🔑 Getting a Groq API key
+## ☁️ Deployment (Render)
 
-Create a free key at [console.groq.com](https://console.groq.com), then set
-`GROQ_API_KEY` in your `.env`. Uses `llama-3.3-70b-versatile`.
-
----
-
-## 🧪 Example flows
-
-**Single-contract analysis:**
-1. Upload a contract PDF on **Contract Upload**.
-2. Go to **Contract Analysis**, ask: *"Review this contract for termination
-   and liability risks"*.
-3. View the Document Intelligence, Compliance, Red Flag, and Risk tabs, plus
-   the full evidence-backed report.
-
-**Compliance / Risk dashboards:**
-- **Compliance Dashboard** — select a document, run the check, see the score
-  gauge and missing-clauses table.
-- **Risk Dashboard** — select a document, see red flag cards sorted by
-  severity with evidence.
-
-**Contract comparison:**
-1. Upload two contracts (e.g. Vendor A's terms and Vendor B's terms).
-2. Go to **Contract Comparison**, select both, run the comparison.
-3. View the added / removed / modified clause diff, plus compliance and risk
-   computed against Contract B.
+1. Push to GitHub.
+2. Create a Render **PostgreSQL** instance, apply `database/schema.sql`.
+3. Deploy `backend/` as a Render **Web Service** — Python 3 runtime, start command `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+4. Deploy `frontend/` as a second Web Service — start command `streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0`.
+5. Set `CORS_ORIGINS` on the backend to the frontend's Render URL.
 
 ---
 
-## ⚠️ Explicitly out of scope
+## 🔮 Future Improvements
 
-Per the original Phase 1 spec, still not implemented (candidates for a
-future phase):
-
-- A supervisor/orchestrator agent with full dynamic multi-agent planning
-  (Phase 2 conditional routing is rule-based on `workflow_mode`, not an
-  LLM-driven supervisor)
-- Session memory across requests / conversations
-- Human-in-the-loop review steps
-- Multi-jurisdiction support beyond whatever the extracted `governing_law`/
-  `jurisdiction` fields surface
+- LLM-driven supervisor agent for dynamic (not rule-based) routing
+- Multi-jurisdiction compliance checklists
+- Human-in-the-loop review before final report sign-off
+- Session memory across multi-turn contract negotiations
+- Async agent execution for latency reduction on long contracts
 
 ---
 
-## ⚖️ Disclaimer
+## 👤 Author
 
-This system produces AI-generated analysis for informational and portfolio
-purposes only. It is **not** a substitute for professional legal advice.
-The Risk Assessment and Red Flag Detection agents are explicitly designed to
-surface evidence-backed observations, not recommendations or legal
-conclusions.
+**Prajwal Barsagade**
+
+B.Tech Electronics & Telecommunication Engineering
+
+AI Engineer | GenAI | RAG | LangGraph | FastAPI
+
+- GitHub: https://github.com/Prajwal07114
+- LinkedIn: http://linkedin.com/in/prajwal-barsagade-380763281/
+## ⚠️ Disclaimer
+
+This platform produces AI-generated analysis for informational and educational purposes only. It is **not a substitute for professional legal advice**. All risk and compliance findings are evidence-backed observations, not legal conclusions — always consult a licensed attorney before acting on contract terms.
